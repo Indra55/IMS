@@ -17,12 +17,13 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-function setupWebSocket(_port: number) { /* Phase 6 */ }
-function startThroughputLogger() { /* Phase 6 */ }
+import { setupWebSocket } from './websocket/server.ts'
+import { startThroughputLogger, stopThroughputLogger, getHealthMetrics } from './observability/metrics.ts'
 
 // Graceful shutdown — stop accepting work before closing connections
 async function shutdown(signal: string): Promise<void> {
   console.log(`\n[IMS] Received ${signal} — shutting down gracefully…`)
+  stopThroughputLogger()
   await stopWorker()
   await closeQueue()
   process.exit(0)
@@ -41,7 +42,7 @@ app.use('/api', rcaRouter)
 app.use('/api', dashboardRouter)
 
 app.get('/health', (_, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), ...getHealthMetrics() })
 })
 
 async function bootstrap() {
@@ -49,13 +50,14 @@ async function bootstrap() {
   await connectMongo()
   await connectRedis()
 
-  setupWebSocket(Number(PORT))
   startWorker()
   startThroughputLogger()
  
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`IMS server running on :${PORT}`)
   })
+  
+  setupWebSocket(server)
 }
  
 bootstrap().catch(console.error)

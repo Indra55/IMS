@@ -7,6 +7,8 @@ import { config } from '../config.ts'
 import { enqueueSignalBatch, enqueueWorkItemCreation } from '../queue/producer.ts'
 import { COMPONENT_PRIORITY_MAP } from '../models/types.ts'
 import type { ComponentType } from '../models/Signal.ts'
+import { recordSignalIngestion } from '../observability/metrics.ts'
+import { broadcastEvent } from '../websocket/server.ts'
 
 const router = Router()
 
@@ -36,6 +38,10 @@ setInterval(() => {
   for (const signal of batch) {
     addSignal(signal)
   }
+
+  if (batch.length >= 50) {
+    broadcastEvent('signal:burst', { count: batch.length, timestamp: new Date().toISOString() })
+  }
 }, DRAIN_INTERVAL_MS)
 
 router.post('/signals', signalRateLimiter, (req, res) => {
@@ -58,6 +64,8 @@ router.post('/signals', signalRateLimiter, (req, res) => {
     })
     return
   }
+
+  recordSignalIngestion(1)
 
   res.status(202).json({
     status: 'accepted',

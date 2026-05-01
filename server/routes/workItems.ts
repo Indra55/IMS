@@ -14,6 +14,7 @@ import { invalidateWorkItemCache } from '../db/redis.js';
 import { Signal } from '../models/Signal.js';
 import type { WorkItem, WorkItemState } from '../models/types.js';
 import { WorkItemContext } from '../workflow/state.js';
+import { broadcastEvent } from '../websocket/server.js';
 
 export const workItemsRouter = Router();
 
@@ -170,6 +171,8 @@ workItemsRouter.patch('/work-items/:id/transition', async (req, res) => {
       'SELECT * FROM work_items WHERE id = $1',
       [id],
     );
+
+    broadcastEvent('work-item:updated', updated.rows[0]);
 
     res.json({
       message: `Transitioned ${workItem.state} → ${target_state}`,

@@ -5,6 +5,7 @@ import { pool } from '../db/postgres.ts'
 import { setWorkItemCache, incrementSignalCount } from '../db/redis.ts'
 import { COMPONENT_PRIORITY_MAP } from '../models/types.ts'
 import { routeAlert } from '../workflow/strategy.ts'
+import { broadcastEvent } from '../websocket/server.ts'
 import type { ComponentType } from '../models/Signal.ts'
 import {
   QUEUE_NAME,
@@ -164,6 +165,15 @@ async function handleCreateWorkItem(payload: CreateWorkItemPayload): Promise<voi
     workItemId = upsertResult.rows[0]!.id
     const isNew = upsertResult.rows[0]!.is_new
     console.log(`[Worker] create-work-item: ${isNew ? 'created' : 'updated'} work item ${workItemId} for ${component_id}`)
+    
+    broadcastEvent(isNew ? 'work-item:created' : 'work-item:updated', {
+      id: workItemId,
+      component_id,
+      component_type,
+      state: 'OPEN',
+      priority,
+      signal_count: signals.length
+    })
   } catch (err) {
     await pgClient.query('ROLLBACK')
     // If this is an unrecoverable schema error, wrap it so BullMQ skips retries
