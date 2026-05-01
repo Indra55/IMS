@@ -5,6 +5,9 @@ import { connectPostgres } from './db/postgres.ts'
 import { connectMongo } from './db/mongo.ts'
 import { connectRedis } from './db/redis.ts'
 import { ingestionRouter } from './ingestion/router.ts'
+import { workItemsRouter } from './routes/workItems.ts'
+import { rcaRouter } from './routes/rca.ts'
+import { dashboardRouter } from './routes/dashboard.ts'
 import { startWorker, stopWorker } from './queue/worker.ts'
 import { closeQueue } from './queue/producer.ts'
 
@@ -33,6 +36,9 @@ process.on('SIGINT',  () => shutdown('SIGINT'))
 
 
 app.use('/api', ingestionRouter)
+app.use('/api', workItemsRouter)
+app.use('/api', rcaRouter)
+app.use('/api', dashboardRouter)
 
 app.get('/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
