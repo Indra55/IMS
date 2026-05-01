@@ -21,11 +21,10 @@ const signalSchemaDefinition = {
 
 const signalSchema = new Schema(signalSchemaDefinition, {
   collection: 'signals',
-  timestamps: false, // we manage our own timestamps
+  timestamps: false,
   versionKey: false,
 })
 
-// Compound index for efficient querying of signals by component over time
 signalSchema.index({ component_id: 1, timestamp: -1 })
 
 export type ISignal = InferRawDocType<typeof signalSchemaDefinition>
