@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Zap, BarChart2, Network, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Activity, Zap, BarChart2, Network, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import type { TabType } from '../App';
 
 interface SidebarProps {
@@ -73,6 +73,20 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, isCollapsed, 
         >
           <Zap size={18} style={{ flexShrink: 0 }} />
           {!isCollapsed && <span className="sidebar-label">Chaos Simulator</span>}
+        </button>
+        <button
+          onClick={() => window.open(`${import.meta.env.VITE_API_URL}/api-docs`, '_blank')}
+          className="btn btn-secondary"
+          style={{ 
+            justifyContent: isCollapsed ? 'center' : 'flex-start', 
+            padding: '0.75rem 1rem',
+            marginTop: '0.5rem',
+            width: '100%'
+          }}
+          title={isCollapsed ? "API Docs" : ""}
+        >
+          <BookOpen size={18} style={{ flexShrink: 0 }} />
+          {!isCollapsed && <span className="sidebar-label">API Docs</span>}
         </button>
       </nav>
       

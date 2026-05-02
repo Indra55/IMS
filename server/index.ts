@@ -8,6 +8,7 @@ import { ingestionRouter } from './ingestion/router.ts'
 import { workItemsRouter } from './routes/workItems.ts'
 import { rcaRouter } from './routes/rca.ts'
 import { dashboardRouter } from './routes/dashboard.ts'
+import { apiDocsRouter } from './routes/apiDocs.ts'
 import { startWorker, stopWorker } from './queue/worker.ts'
 import { closeQueue } from './queue/producer.ts'
 
@@ -40,6 +41,7 @@ app.use('/api', ingestionRouter)
 app.use('/api', workItemsRouter)
 app.use('/api', rcaRouter)
 app.use('/api', dashboardRouter)
+app.use('/', apiDocsRouter)
 
 app.get('/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), ...getHealthMetrics() })

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { API_BASE } from '../config';
 import {
   ReactFlow,
@@ -102,7 +102,7 @@ const nodeTypes = {
 
 const TopologyMap: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
   // Poll for active incidents to update node status
   useEffect(() => {

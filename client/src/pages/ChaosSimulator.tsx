@@ -7,7 +7,7 @@ const ChaosSimulator: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
 
-  const triggerChaos = async (type: string, url: string, payload: any) => {
+  const triggerChaos = async (type: string, payload: any) => {
     setLoading(type);
     setResult(null);
     setSuccess(null);
@@ -67,7 +67,7 @@ const ChaosSimulator: React.FC = () => {
               </p>
             </div>
             <button 
-              onClick={() => triggerChaos('rdbms', '', {
+              onClick={() => triggerChaos('rdbms', {
                 component_id: 'PG_PROD_01',
                 component_type: 'RDBMS',
                 severity: 'CRITICAL',
@@ -94,7 +94,7 @@ const ChaosSimulator: React.FC = () => {
               </p>
             </div>
             <button 
-              onClick={() => triggerChaos('api', '', {
+              onClick={() => triggerChaos('api', {
                 component_id: 'API_GW_US_EAST',
                 component_type: 'API',
                 severity: 'HIGH',
@@ -122,7 +122,7 @@ const ChaosSimulator: React.FC = () => {
               </p>
             </div>
             <button 
-              onClick={() => triggerChaos('cache', '', {
+              onClick={() => triggerChaos('cache', {
                 component_id: 'REDIS_CLUSTER_1',
                 component_type: 'CACHE',
                 severity: 'MEDIUM',

@@ -1,11 +1,23 @@
 import { randomUUID } from 'crypto';
 
-const API_URL = 'http://localhost:5555/api/signals';
+const configuredApiUrl = process.env.API_URL ?? 'http://localhost:5555/api/signals';
+const API_URL = configuredApiUrl.endsWith('/api/signals')
+  ? configuredApiUrl
+  : `${configuredApiUrl.replace(/\/+$/, '')}/api/signals`;
+
+const stats = {
+  attempted: 0,
+  accepted: 0,
+  rejected: 0,
+  failed: 0,
+};
 
 /**
  * Helper to send a single signal to the ingestion API.
  */
 async function sendSignal(componentId: string, componentType: string, severity: string, message: string) {
+  stats.attempted++;
+
   const signal = {
     signal_id: randomUUID(),
     component_id: componentId,
@@ -24,11 +36,16 @@ async function sendSignal(componentId: string, componentType: string, severity: 
     });
     
     if (res.status === 503) {
+      stats.rejected++;
       console.log('⚠️ Rate limited / Backpressure hit');
     } else if (!res.ok) {
+      stats.failed++;
       console.log(`❌ Error: ${res.status} ${await res.text()}`);
+    } else {
+      stats.accepted++;
     }
   } catch (e) {
+    stats.failed++;
     console.error('❌ Network error:', e);
   }
 }
@@ -38,6 +55,7 @@ async function sendSignal(componentId: string, componentType: string, severity: 
  */
 async function runChaosSimulation() {
   console.log('🔥 Starting Chaos Engineering Simulation...\n');
+  console.log(`Target ingestion endpoint: ${API_URL}\n`);
   
   // Phase 1: RDBMS Starts failing (Spike of 50 signals)
   console.log('🚨 [Phase 1] Database cluster "PG_PROD_01" is dropping connections...');
@@ -60,8 +78,24 @@ async function runChaosSimulation() {
     await sendSignal('REDIS_CLUSTER_1', 'CACHE', 'MEDIUM', `OOM command not allowed when used memory > 'maxmemory'.`);
   }
 
-  console.log('\n✅ Simulation complete! Check your Discord (if configured) and database.');
-  console.log('You can now use the new Work Items to test your RCA generator.');
+  console.log('\nSimulation summary:');
+  console.log(`- Attempted: ${stats.attempted}`);
+  console.log(`- Accepted: ${stats.accepted}`);
+  console.log(`- Rejected by backpressure/rate limit: ${stats.rejected}`);
+  console.log(`- Failed: ${stats.failed}`);
+
+  if (stats.accepted === 0) {
+    console.error('\n❌ Simulation failed: no signals were accepted. Check API_URL and backend health.');
+    process.exitCode = 1;
+    return;
+  }
+
+  if (stats.failed > 0 || stats.rejected > 0) {
+    console.warn('\n⚠️ Simulation completed with partial failures. Check backend logs and rate-limit/backpressure settings.');
+  } else {
+    console.log('\n✅ Simulation complete! Check your Discord (if configured) and database.');
+    console.log('You can now use the new Work Items to test your RCA generator.');
+  }
 }
 
 runChaosSimulation().catch(console.error);

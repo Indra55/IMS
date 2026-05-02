@@ -8,26 +8,52 @@ interface Props {
   onRefresh: () => void;
 }
 
+interface RcaFormData {
+  incident_start: string;
+  incident_end: string;
+  root_cause_category: string;
+  fix_applied: string;
+  prevention_steps: string;
+}
+
+function toDateTimeLocalValue(value: string | Date | undefined): string {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 16);
+}
+
+function toIsoStringFromDateTimeLocal(value: string): string {
+  return new Date(value).toISOString();
+}
+
 const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
   const [activeTab, setActiveTab] = useState<'rca' | 'logs' | 'timeline'>('rca');
   
   // RCA State
-  const [rcaDraft, setRcaDraft] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [formData, setFormData] = useState(() => {
-    const saved = localStorage.getItem(`rca_draft_${item.id}`);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return {
+  const [formData, setFormData] = useState<RcaFormData>(() => {
+    const defaults: RcaFormData = {
+      incident_start: toDateTimeLocalValue(item.created_at),
+      incident_end: toDateTimeLocalValue(item.resolved_at || new Date()),
       root_cause_category: 'UNKNOWN',
       fix_applied: '',
       prevention_steps: ''
     };
+
+    const saved = localStorage.getItem(`rca_draft_${item.id}`);
+    if (saved) {
+      try {
+        return { ...defaults, ...JSON.parse(saved) };
+      } catch (e) {}
+    }
+
+    return defaults;
   });
 
   useEffect(() => {
@@ -44,6 +70,8 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
             const json = await res.json();
             if (json.data) {
               setFormData({
+                incident_start: toDateTimeLocalValue(json.data.incident_start),
+                incident_end: toDateTimeLocalValue(json.data.incident_end),
                 root_cause_category: json.data.root_cause_category || 'UNKNOWN',
                 fix_applied: json.data.fix_applied || '',
                 prevention_steps: json.data.prevention_steps || ''
@@ -91,7 +119,6 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
       });
       const json = await res.json();
       if (res.ok) {
-        setRcaDraft(json.data);
         let normalizedCat = 'UNKNOWN';
         if (typeof json.data.root_cause_category === 'string') {
           const upper = json.data.root_cause_category.toUpperCase().replace(/\s+/g, '_');
@@ -100,11 +127,12 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
           normalizedCat = validOptions.includes(upper) ? upper : 'UNKNOWN';
         }
 
-        setFormData({
+        setFormData(prev => ({
+          ...prev,
           root_cause_category: normalizedCat,
           fix_applied: Array.isArray(json.data.fix_applied) ? json.data.fix_applied.join('\n') : (json.data.fix_applied || ''),
           prevention_steps: Array.isArray(json.data.prevention_steps) ? json.data.prevention_steps.join('\n') : (json.data.prevention_steps || '')
-        });
+        }));
         setMessage({ type: 'success', text: 'AI Draft generated successfully!' });
       } else {
         setMessage({ type: 'error', text: json.error || 'Failed to generate draft' });
@@ -139,10 +167,25 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
     setIsSubmitting(true);
     setMessage(null);
 
+    const startTime = new Date(formData.incident_start);
+    const endTime = new Date(formData.incident_end);
+
+    if (
+      !formData.incident_start ||
+      !formData.incident_end ||
+      Number.isNaN(startTime.getTime()) ||
+      Number.isNaN(endTime.getTime()) ||
+      endTime <= startTime
+    ) {
+      setMessage({ type: 'error', text: 'Incident end time must be after incident start time.' });
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
       ...formData,
-      incident_start: item.created_at,
-      incident_end: new Date().toISOString()
+      incident_start: toIsoStringFromDateTimeLocal(formData.incident_start),
+      incident_end: toIsoStringFromDateTimeLocal(formData.incident_end)
     };
 
     try {
@@ -262,6 +305,32 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
             )}
 
             <form onSubmit={submitRca}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label">Incident Start</label>
+                  <input
+                    className="form-control"
+                    type="datetime-local"
+                    value={formData.incident_start}
+                    onChange={e => setFormData({...formData, incident_start: e.target.value})}
+                    disabled={item.state === 'CLOSED'}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Incident End</label>
+                  <input
+                    className="form-control"
+                    type="datetime-local"
+                    value={formData.incident_end}
+                    onChange={e => setFormData({...formData, incident_end: e.target.value})}
+                    disabled={item.state === 'CLOSED'}
+                    required
+                  />
+                </div>
+              </div>
+
               <div className="form-group">
                 <label className="form-label">Root Cause Category</label>
                 <select 

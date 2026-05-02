@@ -182,7 +182,11 @@ workItemsRouter.patch('/work-items/:id/transition', async (req, res) => {
     const message = (err as Error).message;
 
     // State Pattern throws descriptive errors for invalid transitions and RCA guards
-    if (message.includes('Invalid transition') || message.includes('Cannot close')) {
+    if (
+      message.includes('Invalid transition') ||
+      message.includes('Cannot close') ||
+      message.includes('Transition conflict')
+    ) {
       res.status(409).json({ error: message });
       return;
     }

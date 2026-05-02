@@ -164,7 +164,7 @@ export class WorkItemContext {
    * 1. Validates the transition is allowed from the current state.
    * 2. Runs `currentState.onExit()`.
    * 3. Runs `nextState.onEnter()` — may reject (e.g. CLOSED without RCA).
-   * 4. Persists the new state to PostgreSQL with a row-level lock.
+   * 4. Persists the new state to PostgreSQL with a conditional update.
    * 5. Updates the in-memory work item.
    */
   async transition(nextStateName: WorkItemStateName): Promise<void> {
@@ -182,7 +182,7 @@ export class WorkItemContext {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query(
+      const result = await client.query(
         `UPDATE work_items
             SET state = $1, 
                 updated_at = NOW(),
@@ -198,6 +198,13 @@ export class WorkItemContext {
             AND state = $3`,
         [nextStateName, this.workItem.id, this.currentState.name, nextStateName],
       );
+
+      if (result.rowCount !== 1) {
+        throw new Error(
+          `Transition conflict: work item ${this.workItem.id} was already changed by another request`,
+        );
+      }
+
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');

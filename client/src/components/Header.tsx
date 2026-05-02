@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, ServerCrash } from 'lucide-react';
+import { ServerCrash } from 'lucide-react';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 

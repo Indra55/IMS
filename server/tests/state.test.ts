@@ -241,6 +241,14 @@ describe('WorkItemContext', () => {
     mockRelease.mockReset();
     mockPoolQuery.mockReset();
 
+    mockClientQuery.mockImplementation(async (text: string, _params?: unknown[]) => ({
+      rows: [] as any[],
+      rowCount: text.trim().startsWith('UPDATE') ? 1 : 0,
+      command: '',
+      oid: 0,
+      fields: [],
+    }));
+
     // Re-setup the connect mock after reset
     mockConnect.mockResolvedValue({
       query: mockClientQuery,
@@ -340,6 +348,24 @@ describe('WorkItemContext', () => {
     );
     // State should remain RESOLVED on failed transition
     expect(ctx.stateName).toBe('RESOLVED');
+  });
+
+  test('stale concurrent transition is rejected when no row is updated', async () => {
+    const wi = makeWorkItem('OPEN');
+    const ctx = new WorkItemContext(wi);
+
+    mockClientQuery.mockImplementation(async (text: string, _params?: unknown[]) => ({
+      rows: [] as any[],
+      rowCount: text.trim().startsWith('UPDATE') ? 0 : 0,
+      command: '',
+      oid: 0,
+      fields: [],
+    }));
+
+    await expect(ctx.transition('INVESTIGATING')).rejects.toThrow(
+      'Transition conflict',
+    );
+    expect(ctx.stateName).toBe('OPEN');
   });
 
   test('re-open: INVESTIGATING → OPEN', async () => {

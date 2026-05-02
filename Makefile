@@ -1,7 +1,7 @@
 # ─── IMS — Incident Management System ────────────────────────────────────────
 # Quick-start commands for local development and Docker.
 
-.PHONY: up down restart logs test dev install clean nuke
+.PHONY: up down restart logs test dev install clean nuke simulate simulate-docker
 
 # ─── Docker ───────────────────────────────────────────────────────────────────
 
@@ -63,6 +63,10 @@ test-file:
 ## Fire the CLI chaos simulator script
 simulate:
 	cd server && bun run scripts/simulate-incident.ts
+
+## Fire the CLI chaos simulator against the Docker-mapped backend
+simulate-docker:
+	cd server && API_URL=http://localhost:3001/api/signals bun run scripts/simulate-incident.ts
 
 # ─── Cleanup ─────────────────────────────────────────────────────────────────
 
