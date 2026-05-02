@@ -184,10 +184,19 @@ export class WorkItemContext {
       await client.query('BEGIN');
       await client.query(
         `UPDATE work_items
-            SET state = $1, updated_at = NOW()
+            SET state = $1, 
+                updated_at = NOW(),
+                investigating_at = CASE 
+                  WHEN $4 = 'INVESTIGATING' THEN COALESCE(investigating_at, NOW()) 
+                  ELSE investigating_at 
+                END,
+                resolved_at = CASE 
+                  WHEN $4 = 'RESOLVED' THEN NOW() 
+                  ELSE resolved_at 
+                END
           WHERE id = $2
             AND state = $3`,
-        [nextStateName, this.workItem.id, this.currentState.name],
+        [nextStateName, this.workItem.id, this.currentState.name, nextStateName],
       );
       await client.query('COMMIT');
     } catch (err) {
@@ -197,10 +206,13 @@ export class WorkItemContext {
       client.release();
     }
 
+    const now = new Date();
     this.workItem = {
       ...this.workItem,
       state: nextStateName,
-      updated_at: new Date(),
+      updated_at: now,
+      ...(nextStateName === 'INVESTIGATING' && !this.workItem.investigating_at ? { investigating_at: now } : {}),
+      ...(nextStateName === 'RESOLVED' ? { resolved_at: now } : {}),
     };
     this.currentState = nextState;
   }

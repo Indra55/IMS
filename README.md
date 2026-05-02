@@ -84,7 +84,7 @@ The system is designed to handle **bursts of up to 10,000 signals/second** witho
 ### Prerequisites
 - [Docker](https://www.docker.com/) & Docker Compose
 - [Bun](https://bun.sh/) (JavaScript runtime)
-- Node.js & npm (for Frontend)
+- [npm](https://www.npmjs.com/) (for React + Vite Frontend)
 
 ### One-Command Launch (Docker)
 ```bash
@@ -186,3 +186,18 @@ During the development of this high-concurrency system, several interesting tech
    - *Issue*: Container logs were being spammed with `FATAL: database "ims" does not exist` every 5 seconds.
    - *Cause*: The Docker `healthcheck` used `pg_isready -U ims`, which defaulted to checking a database matching the username.
    - *Solution*: Explicitly scoped the healthcheck to the correct database using the `-d` flag: `pg_isready -U ims -d ims_db`.
+8. **React State Bleeding Across Components**
+   - *Issue*: When switching between active incidents in the frontend, the `IncidentDetail` component retained transient state (like "Generating Draft" loading indicators), causing UI inconsistencies.
+   - *Solution*: Forced a complete component remount by explicitly passing `key={selectedItem.id}` to the detail component, guaranteeing a clean state initialization upon navigation.
+9. **Ephemeral RCA Draft Data Loss**
+   - *Issue*: AI-generated RCA drafts were stored purely in React state, meaning the drafted text was permanently lost if the user navigated to another incident or refreshed the page before submitting.
+   - *Solution*: Implemented a robust caching mechanism leveraging `localStorage` keyed by `incident.id`. The frontend automatically saves and restores drafts across sessions, and purges the local cache only upon a successful backend submission.
+10. **Closed Incidents Displaying Blank RCA Forms**
+    - *Issue*: Viewing an already `CLOSED` incident in the dashboard displayed a blank RCA form rather than the finalized report, confusing users into thinking data was lost.
+    - *Solution*: Added an explicit data-fetching effect that queries `GET /api/work-items/:id/rca` for closed incidents and populates the disabled form with the permanent database record.
+11. **UTC Timestamp Discrepancies in Live Logs**
+    - *Issue*: The Live Logs tab rendered timestamps using raw `.toISOString()`, forcing Zulu (UTC) time. This caused confusion for engineers as the timestamps did not align with their local system clocks.
+    - *Solution*: Replaced the raw UTC strings with an offset-adjusted localization technique, rendering exact local time with millisecond precision for rapid, localized diagnostics.
+12. **Native Dropdown Legibility in Dark Theme**
+    - *Issue*: Select dropdowns (like the RCA Category and the Feed Sorting menu) rendered with the operating system's default white background, making the text illegible against the dark dashboard theme.
+    - *Solution*: Unified the dropdowns under the global `.form-control` class and explicitly enforced dark background tokens on the `<option>` child elements to override the native OS styling.

@@ -18,6 +18,8 @@ export interface WorkItem {
   signal_count: number
   created_at: Date
   updated_at: Date
+  investigating_at?: Date
+  resolved_at?: Date
 }
 
 // ─── RCA (PostgreSQL) ───────────────────────────────────────────────────────

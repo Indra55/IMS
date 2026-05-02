@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { WorkItem } from '../pages/LiveFeed';
-import { Brain, Save, CheckCircle, AlertCircle, FileText, Terminal, Clock } from 'lucide-react';
+import { Brain, Save, CheckCircle, AlertCircle, FileText, Terminal, Clock, Search, Wrench } from 'lucide-react';
 import { API_BASE } from '../config';
 
 interface Props {
@@ -16,11 +16,47 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [formData, setFormData] = useState({
-    root_cause_category: 'UNKNOWN',
-    fix_applied: '',
-    prevention_steps: ''
+  const [formData, setFormData] = useState(() => {
+    const saved = localStorage.getItem(`rca_draft_${item.id}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      root_cause_category: 'UNKNOWN',
+      fix_applied: '',
+      prevention_steps: ''
+    };
   });
+
+  useEffect(() => {
+    localStorage.setItem(`rca_draft_${item.id}`, JSON.stringify(formData));
+  }, [formData, item.id]);
+
+  // Fetch RCA if already closed
+  useEffect(() => {
+    if (item.state === 'CLOSED') {
+      const fetchRca = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/work-items/${item.id}/rca`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.data) {
+              setFormData({
+                root_cause_category: json.data.root_cause_category || 'UNKNOWN',
+                fix_applied: json.data.fix_applied || '',
+                prevention_steps: json.data.prevention_steps || ''
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch RCA', err);
+        }
+      };
+      fetchRca();
+    }
+  }, [item.id, item.state]);
 
   // Logs State
   const [logs, setLogs] = useState<any[]>([]);
@@ -56,8 +92,16 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
       const json = await res.json();
       if (res.ok) {
         setRcaDraft(json.data);
+        let normalizedCat = 'UNKNOWN';
+        if (typeof json.data.root_cause_category === 'string') {
+          const upper = json.data.root_cause_category.toUpperCase().replace(/\s+/g, '_');
+          // Basic check to see if it matches our allowed UI options, else fallback to UNKNOWN
+          const validOptions = ['INFRASTRUCTURE', 'APPLICATION', 'NETWORK', 'DATABASE', 'CACHE', 'UNKNOWN'];
+          normalizedCat = validOptions.includes(upper) ? upper : 'UNKNOWN';
+        }
+
         setFormData({
-          root_cause_category: json.data.root_cause_category || 'UNKNOWN',
+          root_cause_category: normalizedCat,
           fix_applied: Array.isArray(json.data.fix_applied) ? json.data.fix_applied.join('\n') : (json.data.fix_applied || ''),
           prevention_steps: Array.isArray(json.data.prevention_steps) ? json.data.prevention_steps.join('\n') : (json.data.prevention_steps || '')
         });
@@ -118,6 +162,7 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
           });
           
           if (transitionRes.ok) {
+            localStorage.removeItem(`rca_draft_${item.id}`);
             setMessage({ type: 'success', text: 'RCA Submitted and Incident Closed!' });
             new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
             onRefresh();
@@ -225,12 +270,12 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
                   onChange={e => setFormData({...formData, root_cause_category: e.target.value})}
                   disabled={item.state === 'CLOSED'}
                 >
-                  <option value="UNKNOWN">UNKNOWN</option>
-                  <option value="INFRASTRUCTURE">INFRASTRUCTURE</option>
-                  <option value="APPLICATION">APPLICATION</option>
-                  <option value="NETWORK">NETWORK</option>
-                  <option value="DATABASE">DATABASE</option>
-                  <option value="CACHE">CACHE</option>
+                  <option value="UNKNOWN" style={{ background: 'var(--bg-panel-solid)', color: 'var(--text-primary)' }}>UNKNOWN</option>
+                  <option value="INFRASTRUCTURE" style={{ background: 'var(--bg-panel-solid)', color: 'var(--text-primary)' }}>INFRASTRUCTURE</option>
+                  <option value="APPLICATION" style={{ background: 'var(--bg-panel-solid)', color: 'var(--text-primary)' }}>APPLICATION</option>
+                  <option value="NETWORK" style={{ background: 'var(--bg-panel-solid)', color: 'var(--text-primary)' }}>NETWORK</option>
+                  <option value="DATABASE" style={{ background: 'var(--bg-panel-solid)', color: 'var(--text-primary)' }}>DATABASE</option>
+                  <option value="CACHE" style={{ background: 'var(--bg-panel-solid)', color: 'var(--text-primary)' }}>CACHE</option>
                 </select>
               </div>
 
@@ -281,9 +326,11 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
             ) : (
               logs.map((log: any, idx) => {
                 const isCrit = log.severity === 'CRITICAL';
+                const d = new Date(log.timestamp);
+                const localTime = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 23).replace('T', ' ');
                 return (
                   <div key={idx} style={{ marginBottom: '0.5rem', fontSize: '0.875rem', borderBottom: '1px solid #222', paddingBottom: '0.25rem' }}>
-                    <span style={{ color: '#888' }}>[{new Date(log.timestamp).toISOString()}]</span>{' '}
+                    <span style={{ color: '#888' }}>[{localTime}]</span>{' '}
                     <span style={{ color: isCrit ? '#ef4444' : '#f97316' }}>[{log.severity}]</span>{' '}
                     <span style={{ color: '#e2e8f0' }}>{log.message}</span>
                   </div>
@@ -310,6 +357,32 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
                 </div>
               </div>
 
+              {item.investigating_at && (
+                <div style={{ display: 'flex', gap: '1rem', position: 'relative', zIndex: 1 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--status-p2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Search size={16} color="white" />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Investigation Started</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{new Date(item.investigating_at).toLocaleString()}</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>Engineer acknowledged the incident.</div>
+                  </div>
+                </div>
+              )}
+
+              {item.resolved_at && (
+                <div style={{ display: 'flex', gap: '1rem', position: 'relative', zIndex: 1 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--status-p3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Wrench size={16} color="white" />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Fix Applied</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{new Date(item.resolved_at).toLocaleString()}</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>System status verified as resolved.</div>
+                  </div>
+                </div>
+              )}
+
               {item.state === 'CLOSED' && (
                 <div style={{ display: 'flex', gap: '1rem', position: 'relative', zIndex: 1 }}>
                   <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--status-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -318,7 +391,7 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
                   <div>
                     <div style={{ fontWeight: 600 }}>Incident Closed</div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{new Date(item.updated_at).toLocaleString()}</div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>RCA submitted and system normalized.</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>RCA submitted and incident archived.</div>
                   </div>
                 </div>
               )}

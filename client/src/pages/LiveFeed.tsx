@@ -12,6 +12,8 @@ export interface WorkItem {
   signal_count: number;
   created_at: string;
   updated_at: string;
+  investigating_at?: string;
+  resolved_at?: string;
 }
 
 const PRIORITY_COLORS = {
@@ -28,10 +30,13 @@ const STATE_COLORS = {
   CLOSED: 'var(--status-success)',
 };
 
+type SortOption = 'priority_high' | 'time_newest' | 'time_oldest';
+
 const LiveFeed: React.FC = () => {
   const [workItems, setWorkItems] = useState<WorkItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<SortOption>('priority_high');
 
   const fetchWorkItems = async () => {
     try {
@@ -57,21 +62,55 @@ const LiveFeed: React.FC = () => {
 
   const selectedItem = workItems.find(w => w.id === selectedId);
 
+  const sortedItems = [...workItems].sort((a, b) => {
+    if (sortBy === 'priority_high') {
+      const priorityWeight = { P0: 4, P1: 3, P2: 2, P3: 1 };
+      const weightA = priorityWeight[a.priority] || 0;
+      const weightB = priorityWeight[b.priority] || 0;
+      if (weightA !== weightB) return weightB - weightA;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    } else if (sortBy === 'time_newest') {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    } else if (sortBy === 'time_oldest') {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }
+    return 0;
+  });
+
   return (
     <div style={{ display: 'flex', height: '100%' }}>
       {/* List Pane */}
       <div style={{ width: '40%', minWidth: '350px', borderRight: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '1.125rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <ShieldAlert size={18} /> Active Incidents
-          </h2>
-          <button onClick={fetchWorkItems} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }}>
-            <RefreshCw size={14} />
-          </button>
+        <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '1.125rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ShieldAlert size={18} /> Active Incidents
+            </h2>
+            <button onClick={fetchWorkItems} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} title="Refresh Feed">
+              <RefreshCw size={14} />
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+             <span style={{ color: 'var(--text-muted)' }}>Sort by:</span>
+             <select 
+               className="form-control"
+               value={sortBy} 
+               onChange={e => setSortBy(e.target.value as SortOption)}
+               style={{ 
+                 padding: '0.25rem 0.5rem',
+                 cursor: 'pointer',
+                 flex: 1
+               }}
+             >
+               <option value="priority_high" style={{ background: 'var(--bg-panel-solid)', color: 'var(--text-primary)' }}>Priority (High - Low)</option>
+               <option value="time_newest" style={{ background: 'var(--bg-panel-solid)', color: 'var(--text-primary)' }}>Time (Newest First)</option>
+               <option value="time_oldest" style={{ background: 'var(--bg-panel-solid)', color: 'var(--text-primary)' }}>Time (Oldest First)</option>
+             </select>
+          </div>
         </div>
         
         <div style={{ overflowY: 'auto', flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {loading && workItems.length === 0 ? (
+          {loading && sortedItems.length === 0 ? (
             Array(4).fill(0).map((_, i) => (
               <div key={i} className="glass-panel" style={{ padding: '1rem', opacity: 1 - i * 0.2 }}>
                 <div style={{ height: '20px', width: '60px', background: 'var(--border-subtle)', borderRadius: '4px', marginBottom: '0.5rem' }} />
@@ -80,13 +119,13 @@ const LiveFeed: React.FC = () => {
                 <div style={{ height: '12px', width: '40px', background: 'var(--border-subtle)', borderRadius: '4px' }} />
               </div>
             ))
-          ) : workItems.length === 0 ? (
+          ) : sortedItems.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '2rem' }}>
               <CheckCircle size={32} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
               No active incidents.
             </div>
           ) : (
-            workItems.map(item => (
+            sortedItems.map(item => (
               <div 
                 key={item.id} 
                 className={`glass-panel ${selectedId === item.id ? 'glass-panel-solid' : ''}`}
@@ -139,7 +178,7 @@ const LiveFeed: React.FC = () => {
       {/* Detail Pane */}
       <div style={{ flex: 1, backgroundColor: 'rgba(15, 17, 26, 0.3)', overflowY: 'auto' }}>
         {selectedItem ? (
-          <IncidentDetail item={selectedItem} onRefresh={fetchWorkItems} />
+          <IncidentDetail key={selectedItem.id} item={selectedItem} onRefresh={fetchWorkItems} />
         ) : (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
             <Search size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />

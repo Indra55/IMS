@@ -1,7 +1,7 @@
 import express from "express";
 import cors from 'cors'
 import { config } from './config.ts'
-import { connectPostgres } from './db/postgres.ts'
+import { connectPostgres, pool } from './db/postgres.ts'
 import { connectMongo } from './db/mongo.ts'
 import { connectRedis } from './db/redis.ts'
 import { ingestionRouter } from './ingestion/router.ts'
