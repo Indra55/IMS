@@ -2,7 +2,7 @@
 
 An enterprise-grade, highly concurrent Incident Management System designed to ingest, debounce, and process high-volume failure signals from distributed systems. Features a robust backend built on Bun + Express, and a premium "NOC" (Network Operations Center) React + Vite dashboard.
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 graph TD
@@ -69,7 +69,7 @@ graph TD
     UI -.->|Draft RCA| AI
 ```
 
-## 🛡️ Backpressure & Resilience
+## Backpressure & Resilience
 
 The system is designed to handle **bursts of up to 10,000 signals/second** without crashing or overloading the database.
 
@@ -79,7 +79,7 @@ The system is designed to handle **bursts of up to 10,000 signals/second** witho
 4. **Async Processing (BullMQ):** Instead of executing 100 database inserts on the main thread, the Debouncer emits **one** single WorkItem creation job to a Redis-backed BullMQ Queue. 
 5. **Data Lake vs. Source of Truth:** The Async worker pulls the job, writes the 100 raw signals to the **MongoDB Data Lake**, but only executes **one** transactional state update in the **PostgreSQL Source of Truth**.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - [Docker](https://www.docker.com/) & Docker Compose
@@ -132,11 +132,11 @@ Or use the **Chaos Simulator** tab directly in the UI.
 | `make simulate` | Fire the CLI chaos simulator |
 | `make clean` | Remove node_modules & build artifacts |
 
-## 🧠 Design Patterns Utilized
+## Design Patterns Utilized
 - **Finite-State Machine (State Pattern):** Strictly controls incident transitions (`OPEN` → `INVESTIGATING` → `RESOLVED` → `CLOSED`). Prevents `CLOSED` transition if an RCA is missing.
 - **Strategy Pattern:** Decouples alerting logic. `P0CriticalAlert` pings Discord, while `P3LowAlert` simply logs.
 
-## 🔄 DB Write Retry & Resilience
+## DB Write Retry & Resilience
 
 The system uses a **dual-layer retry strategy** to survive transient PostgreSQL failures (connection drops, deadlocks, row locks):
 
@@ -150,7 +150,7 @@ The system uses a **dual-layer retry strategy** to survive transient PostgreSQL 
 - **Non-transient errors** (unique violations `23505`, schema mismatches `23502`) are wrapped in BullMQ's `UnrecoverableError` to skip retry entirely.
 - **Unit tests** in `tests/dbRetry.test.ts` mock `pool.query` to simulate connection failures and deadlocks, proving the retry mechanism triggers and recovers correctly.
 
-## 🌟 Non-Functional Enhancements (Bonus Points)
+## Non-Functional Enhancements
 To truly make this a senior-level, production-ready system, several non-functional enhancements were implemented:
 
 1. **Pre-allocated Ring Buffer**: Absorbs initial API I/O spikes without reallocating memory, protecting the Node event loop.
@@ -160,7 +160,7 @@ To truly make this a senior-level, production-ready system, several non-function
 5. **AI-Powered RCA Drafts**: Integrated the OpenRouter API (Nemotron 120B model) to actively parse raw MongoDB signal payloads and generate JSON-structured Root Cause Analysis drafts for the responding engineer.
 6. **Distributed Shed-Load Tracking**: Integrated a Redis-backed dropped signal counter to explicitly track and log 503 rejections during extreme traffic spikes, proving the system's "self-awareness" of its own capacity constraints.
 
-## 🐛 Bugs Encountered & Solved
+## Bugs *I* Encountered & Solved
 During the development of this high-concurrency system, several interesting technical challenges emerged and were mitigated:
 
 1. **MongoDB Bulk Insert Collisions (`MongoBulkWriteError`)**
@@ -175,3 +175,14 @@ During the development of this high-concurrency system, several interesting tech
 4. **React/Vite ESM Type Resolution Errors**
    - *Issue*: The Vite frontend kept crashing with `Uncaught SyntaxError: The requested module does not provide an export named 'WorkItem'`.
    - *Solution*: Root-caused to Vite's strict ES Module handling of TypeScript interfaces during Fast Refresh. Resolved by enforcing explicit `import type { ... }` declarations across all React components.
+5. **PostgreSQL Volume Persistence (The "Stale Database" Bug)**
+   - *Issue*: After renaming the production database in `docker-compose.yml`, the system still threw `database "ims" does not exist` errors.
+   - *Solution*: Identified that Docker volumes are persistent across restarts. Performed a `docker-compose down -v` to purge the old volume and allow the fresh `ims_db` to initialize.
+6. **Frontend-Backend Docker Port Mismatch**
+   - *Issue*: API calls and the Chaos Simulator failed in Docker but worked locally.
+   - *Cause*: Hardcoded `localhost:5555` URLs in React components didn't match the Docker-mapped port `3001`.
+   - *Solution*: Centralized API logic into a `config.ts` that dynamically selects the base URL from environment variables, ensuring environment-agnostic networking.
+7. **PostgreSQL Healthcheck Fatal Logs**
+   - *Issue*: Container logs were being spammed with `FATAL: database "ims" does not exist` every 5 seconds.
+   - *Cause*: The Docker `healthcheck` used `pg_isready -U ims`, which defaulted to checking a database matching the username.
+   - *Solution*: Explicitly scoped the healthcheck to the correct database using the `-d` flag: `pg_isready -U ims -d ims_db`.

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { WS_URL } from './config';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import LiveFeed from './pages/LiveFeed';
@@ -79,7 +80,7 @@ function AppContent() {
 
 function App() {
   return (
-    <WebSocketProvider url="ws://localhost:5555">
+    <WebSocketProvider url={WS_URL}>
       <AppContent />
     </WebSocketProvider>
   );

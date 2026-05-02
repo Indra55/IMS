@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { API_BASE } from '../config';
 import {
   ReactFlow,
   MiniMap,
@@ -107,7 +108,7 @@ const TopologyMap: React.FC = () => {
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const res = await fetch('http://localhost:5555/api/work-items?state=OPEN');
+        const res = await fetch(`${API_BASE}/api/work-items?state=OPEN`);
         if (res.ok) {
           const json = await res.json();
           const activeComponents = json.data.map((wi: any) => wi.component_id);

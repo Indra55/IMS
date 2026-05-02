@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { WorkItem } from '../pages/LiveFeed';
 import { Brain, Save, CheckCircle, AlertCircle, FileText, Terminal, Clock } from 'lucide-react';
+import { API_BASE } from '../config';
 
 interface Props {
   item: WorkItem;
@@ -30,7 +31,7 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
       const fetchLogs = async () => {
         setLoadingLogs(true);
         try {
-          const res = await fetch(`http://localhost:5555/api/work-items/${item.id}/signals`);
+          const res = await fetch(`${API_BASE}/api/work-items/${item.id}/signals`);
           if (res.ok) {
             const json = await res.json();
             setLogs(json.signals || []);
@@ -49,7 +50,7 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
     setIsGenerating(true);
     setMessage(null);
     try {
-      const res = await fetch(`http://localhost:5555/api/work-items/${item.id}/rca/draft`, {
+      const res = await fetch(`${API_BASE}/api/work-items/${item.id}/rca/draft`, {
         method: 'POST'
       });
       const json = await res.json();
@@ -73,7 +74,7 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
 
   const updateState = async (targetState: string) => {
     try {
-      const res = await fetch(`http://localhost:5555/api/work-items/${item.id}/transition`, {
+      const res = await fetch(`${API_BASE}/api/work-items/${item.id}/transition`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ target_state: targetState })
@@ -101,7 +102,7 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
     };
 
     try {
-      const res = await fetch(`http://localhost:5555/api/work-items/${item.id}/rca`, {
+      const res = await fetch(`${API_BASE}/api/work-items/${item.id}/rca`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -110,7 +111,7 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
 
       if (res.ok || res.status === 409) {
         try {
-          const transitionRes = await fetch(`http://localhost:5555/api/work-items/${item.id}/transition`, {
+          const transitionRes = await fetch(`${API_BASE}/api/work-items/${item.id}/transition`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ target_state: 'CLOSED' })

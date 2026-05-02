@@ -4,4 +4,4 @@ COPY package.json bun.lockb* ./
 RUN bun install
 COPY . .
 EXPOSE 3001
-CMD ["bun", "--watch", "src/index.ts"]
+CMD ["bun", "--watch", "index.ts"]

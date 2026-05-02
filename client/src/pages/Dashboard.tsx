@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie } from 'recharts';
 import { Activity, Clock, ShieldAlert, CheckCircle } from 'lucide-react';
+import { API_BASE } from '../config';
 
 const COLORS = {
   CRITICAL: '#ef4444',
@@ -18,8 +19,8 @@ const Dashboard: React.FC = () => {
     const fetchData = async () => {
       try {
         const [sumRes, tsRes] = await Promise.all([
-          fetch('http://localhost:5555/api/dashboard/summary'),
-          fetch('http://localhost:5555/api/dashboard/timeseries?interval=5m&range=6h')
+          fetch(`${API_BASE}/api/dashboard/summary`),
+          fetch(`${API_BASE}/api/dashboard/timeseries?interval=5m&range=6h`)
         ]);
         
         if (sumRes.ok) {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Clock, ShieldAlert, CheckCircle, Search, RefreshCw } from 'lucide-react';
 import IncidentDetail from '../components/IncidentDetail';
+import { API_BASE } from '../config';
 
 export interface WorkItem {
   id: string;
@@ -35,7 +36,7 @@ const LiveFeed: React.FC = () => {
   const fetchWorkItems = async () => {
     try {
       // In ip.md it mentions /api/dashboard for aggregations, but /api/work-items for CRUD
-      const res = await fetch('http://localhost:5555/api/work-items');
+      const res = await fetch(`${API_BASE}/api/work-items`);
       if (res.ok) {
         const json = await res.json();
         setWorkItems(json.data || []);

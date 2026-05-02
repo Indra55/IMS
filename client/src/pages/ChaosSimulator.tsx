@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Database, Server, HardDrive, AlertTriangle } from 'lucide-react';
+import { API_BASE } from '../config';
 
 const ChaosSimulator: React.FC = () => {
   const [loading, setLoading] = useState<string | null>(null);
@@ -14,7 +15,7 @@ const ChaosSimulator: React.FC = () => {
       const burstSize = type === 'rdbms' ? 50 : type === 'api' ? 150 : 20;
       
       for (let i = 0; i < burstSize; i++) {
-        fetch('http://localhost:5555/api/signals', {
+        fetch(`${API_BASE}/api/signals`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
