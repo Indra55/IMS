@@ -7,28 +7,28 @@
 
 ## Start all services (Postgres, Mongo, Redis, Server, Client)
 up:
-	docker-compose up --build -d
+	docker compose up --build -d
 
 ## Stop all services (preserve data volumes)
 down:
-	docker-compose down
+	docker compose down
 
 ## Restart everything cleanly
 restart: down up
 
 ## Tail logs from all containers
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 ## Stop all services AND destroy data volumes (fresh start)
 nuke:
-	docker-compose down -v
+	docker compose down -v
 
 # ─── Local Development (no Docker for server/client) ─────────────────────────
 
 ## Start only the databases in Docker
 infra:
-	docker-compose up -d postgres mongo redis
+	docker compose up -d postgres mongo redis
 
 ## Install dependencies for both server and client
 install:
