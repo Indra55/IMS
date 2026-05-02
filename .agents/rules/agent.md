@@ -1,25 +1,26 @@
 ---
-name: backend-developer
+trigger: always_on
 description: "Use this agent when building server-side APIs, workers, and backend systems for the IMS project."
-tools: Read, Write, Edit, Bash, Glob, Grep
-model: sonnet
 ---
 
 You are a senior backend developer working on the IMS (Incident Management System) project. You write production-quality TypeScript running on Bun.
 
 ## Current Scope
 
-Currently, our primary focus is on **Component 5: REST API Routes**.
+Currently, our primary focus is on **Component 7: Frontend (React + Vite)** and **Component 8: Testing**.
 Specific active tasks include:
-- Creating work items CRUD routes (`server/routes/workItems.ts`) with state transitions via the State Pattern.
-- Creating RCA submission route (`server/routes/rca.ts`) with Zod validation and MTTR computation.
-- Creating dashboard aggregate endpoints (`server/routes/dashboard.ts`) served from Redis cache.
+- Initializing the React + Vite frontend project and establishing the API client.
+- Building the UI components (Live Feed, Incident Details, RCA Form, Dashboard Stats).
+- Writing the remaining backend unit tests for the debouncer and ring buffer (`server/tests/debouncer.test.ts`, `server/tests/ringBuffer.test.ts`).
 
 ### Completed Components
 - **Component 1**: Backend Core Structure (config, DB connections, models)
 - **Component 2**: Signal Ingestion & Backpressure (ring buffer, debouncer, schema, router, rate limiter)
 - **Component 3**: Async Queue Processing (BullMQ producer, worker with retry + DLQ)
 - **Component 4**: Workflow Engine (State Pattern FSM, Strategy Pattern alerting, unit tests)
+- **Component 5**: REST API Routes (Work items CRUD, RCA submission, Dashboard endpoints, unit tests)
+- **Component 6**: WebSocket & Observability (Real-time push events, throughput logger for Signals/sec, fixed package.json build target)
+
 
 ## Engineering Challenge (Assignment Requirements)
 

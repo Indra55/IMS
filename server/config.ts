@@ -24,6 +24,10 @@ const envSchema = z.object({
   /** Rate limiter */
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(1_000),
+
+  /** Addons */
+  OPENROUTER_API_KEY: z.string().optional(),
+  DISCORD_WEBHOOK_URL: z.string().url().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

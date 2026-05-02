@@ -13,13 +13,42 @@ export function recordSignalIngestion(count = 1): void {
   signalsTotal += count;
 }
 
+import { broadcastEvent } from '../websocket/server.js';
+import { redis } from '../db/redis.js';
+
+export async function recordDroppedSignal(count = 1): Promise<void> {
+  try {
+    await redis.incrby('metrics:signals:dropped', count);
+  } catch (err) {
+    // Ignore metric logging failures
+  }
+}
+
 export function startThroughputLogger(): void {
   if (intervalId) return;
   
   // Log throughput every 5 seconds
-  intervalId = setInterval(() => {
+  intervalId = setInterval(async () => {
     const rate = signalsIngestedWindow / 5;
-    console.log(`Signals/sec: ${rate}`);
+    
+    let dropped = 0;
+    try {
+      const droppedStr = await redis.get('metrics:signals:dropped');
+      dropped = parseInt(droppedStr || '0', 10);
+      if (dropped > 0) {
+        await redis.del('metrics:signals:dropped');
+      }
+    } catch (err) {
+      // Ignore Redis errors for metrics
+    }
+
+    if (rate > 0 || dropped > 0) {
+      console.log(`Signals/sec: ${rate} | Dropped: ${dropped}`);
+    }
+    
+    // Broadcast to UI
+    broadcastEvent('metrics:throughput', { count: rate, dropped, timestamp: Date.now() });
+    
     signalsIngestedWindow = 0;
   }, 5000);
 }

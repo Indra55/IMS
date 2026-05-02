@@ -10,6 +10,8 @@ import { z } from 'zod/v4';
 import { query, pool } from '../db/postgres.js';
 import { invalidateWorkItemCache } from '../db/redis.js';
 import type { RCA, RootCauseCategory, WorkItem } from '../models/types.js';
+import { Signal } from '../models/Signal.js';
+import { config } from '../config.js';
 
 export const rcaRouter = Router();
 
@@ -64,6 +66,11 @@ rcaRouter.post('/work-items/:id/rca', async (req, res) => {
 
     if (wiResult.rows.length === 0) {
       res.status(404).json({ error: `Work item ${id} not found` });
+      return;
+    }
+
+    if (wiResult.rows[0]!.state !== 'RESOLVED') {
+      res.status(409).json({ error: `Cannot submit RCA: Work item is in state ${wiResult.rows[0]!.state}, must be RESOLVED` });
       return;
     }
 
@@ -156,6 +163,99 @@ rcaRouter.get('/work-items/:id/rca', async (req, res) => {
     res.json({ data: rcaResult.rows[0] });
   } catch (err) {
     console.error('[Routes] GET /work-items/:id/rca error:', (err as Error).message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /api/work-items/:id/rca/draft ──────────────────────────────────────
+
+/** Generate an AI-assisted RCA draft based on raw signals. */
+rcaRouter.post('/work-items/:id/rca/draft', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!config.OPENROUTER_API_KEY) {
+      res.status(503).json({ error: 'AI RCA Draft generation is not configured (OPENROUTER_API_KEY missing)' });
+      return;
+    }
+
+    // Verify work item exists and get component details
+    const wiResult = await query<WorkItem>(
+      'SELECT id, component_id, title FROM work_items WHERE id = $1',
+      [id],
+    );
+
+    if (wiResult.rows.length === 0) {
+      res.status(404).json({ error: `Work item ${id} not found` });
+      return;
+    }
+
+    const workItem = wiResult.rows[0]!;
+
+    // Fetch up to 50 raw signals from Mongo for this work item
+    const signals = await Signal.find({ work_item_id: id })
+      .sort({ timestamp: -1 })
+      .limit(50)
+      .lean();
+
+    if (signals.length === 0) {
+      res.status(400).json({ error: 'No raw signals found to generate an RCA draft.' });
+      return;
+    }
+
+    // Prepare prompt
+    const errorMessages = signals.map(s => `[${s.severity}] ${s.message}`).join('\n');
+    const prompt = `
+You are an expert SRE (Site Reliability Engineer). An incident occurred for component "${workItem.component_id}".
+Incident Title: "${workItem.title}"
+
+Here is a sample of the raw error logs:
+${errorMessages}
+
+Based on these logs, please generate an RCA (Root Cause Analysis). 
+You must respond with ONLY a valid JSON object matching this schema, with no markdown formatting or extra text:
+{
+  "root_cause_category": "One of: INFRASTRUCTURE, APPLICATION, NETWORK, DATABASE, CACHE, HUMAN_ERROR, THIRD_PARTY, UNKNOWN",
+  "fix_applied": "A short, precise description of the technical fix that was or should be applied.",
+  "prevention_steps": "A short list of steps to prevent this in the future."
+}
+`;
+
+    // Call OpenRouter API
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'nvidia/nemotron-3-super-120b-a12b:free', // Requested by user
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' }
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[OpenRouter] Error:', await response.text());
+      res.status(502).json({ error: 'Failed to generate AI draft from provider.' });
+      return;
+    }
+
+    const data = (await response.json()) as any;
+    const content = data.choices?.[0]?.message?.content || '{}';
+    
+    let draft;
+    try {
+      draft = JSON.parse(content);
+    } catch (e) {
+      console.error('[OpenRouter] Failed to parse JSON response:', content);
+      res.status(500).json({ error: 'Failed to parse AI response' });
+      return;
+    }
+
+    res.json({ data: draft });
+  } catch (err) {
+    console.error('[Routes] POST /work-items/:id/rca/draft error:', (err as Error).message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

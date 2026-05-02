@@ -22,11 +22,26 @@ export interface CreateWorkItemPayload {
 export type JobPayload = ProcessSignalsPayload | CreateWorkItemPayload
 
 
+/**
+ * BullMQ retry strategy for all jobs.
+ *
+ * If a worker handler throws (e.g. PostgreSQL connection drop, deadlock),
+ * BullMQ will re-attempt the job up to 3 times with exponential backoff:
+ *   Attempt 1: immediate
+ *   Attempt 2: after 1 000ms
+ *   Attempt 3: after 2 000ms
+ *
+ * After exhausting all attempts the job is moved to the failed set
+ * where it can be inspected or manually retried (Dead Letter Queue pattern).
+ *
+ * Non-transient errors (e.g. schema violations) are wrapped in
+ * `UnrecoverableError` by the worker so BullMQ skips retry entirely.
+ */
 const DEFAULT_JOB_OPTS = {
   attempts: 3,
   backoff: {
     type: 'exponential' as const,
-    delay: 1_000,   // 1s, 2s, 4s
+    delay: 1_000,   // 1s → 2s → 4s
   },
   removeOnComplete: { count: 500 },
   removeOnFail:     { count: 200 },

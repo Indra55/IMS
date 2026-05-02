@@ -7,7 +7,7 @@ import { config } from '../config.ts'
 import { enqueueSignalBatch, enqueueWorkItemCreation } from '../queue/producer.ts'
 import { COMPONENT_PRIORITY_MAP } from '../models/types.ts'
 import type { ComponentType } from '../models/Signal.ts'
-import { recordSignalIngestion } from '../observability/metrics.ts'
+import { recordSignalIngestion, recordDroppedSignal } from '../observability/metrics.ts'
 import { broadcastEvent } from '../websocket/server.ts'
 
 const router = Router()
@@ -59,6 +59,7 @@ router.post('/signals', signalRateLimiter, (req, res) => {
 
   const accepted = signalBuffer.enqueue(signal)
   if (!accepted) {
+    recordDroppedSignal(1).catch(err => console.error('[Router] Failed to record dropped signal:', err))
     res.status(503).json({
       error: 'Server under backpressure, try again later',
     })

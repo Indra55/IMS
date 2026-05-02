@@ -16,7 +16,24 @@ import {
   type JobPayload,
 } from './producer.ts'
 
-// ─── Dead-letter queue name ───────────────────────────────────────────────────
+// ─── Retry Strategy (Dual-Layer) ──────────────────────────────────────────────
+//
+// Layer 1 — BullMQ job-level retry:
+//   Every job is configured with `attempts: 3` and exponential backoff
+//   (1s → 2s → 4s) in producer.ts DEFAULT_JOB_OPTS. If handleCreateWorkItem()
+//   throws a transient error (e.g. PG connection drop mid-transaction), BullMQ
+//   automatically re-enqueues the entire job. After 3 failures the job moves
+//   to the Dead Letter Queue for manual triage.
+//
+// Layer 2 — Per-query retry (route handlers):
+//   The `query()` helper in db/postgres.ts wraps pool.query with automatic
+//   retry on transient PG error codes (08006, 40P01, 57P01, ECONNRESET, etc.)
+//   with 500ms → 1s exponential backoff. This protects REST API reads/writes
+//   that run outside BullMQ (e.g. GET /work-items, POST /rca).
+//
+// Non-transient errors (23505 unique_violation, 23502 not_null_violation) are
+// wrapped in UnrecoverableError so BullMQ skips retry entirely.
+// ──────────────────────────────────────────────────────────────────────────────
 
 export const DLQ_NAME = 'ims-jobs-dlq'
 
@@ -176,12 +193,14 @@ async function handleCreateWorkItem(payload: CreateWorkItemPayload): Promise<voi
     })
   } catch (err) {
     await pgClient.query('ROLLBACK')
-    // If this is an unrecoverable schema error, wrap it so BullMQ skips retries
+    // Non-transient schema errors → UnrecoverableError skips BullMQ retry
+    // Transient errors (connection drop, deadlock) bubble up → BullMQ retries
+    // the entire job with exponential backoff (1s → 2s → 4s, 3 attempts max)
     const pgErr = err as { code?: string }
     if (pgErr.code === '23502' || pgErr.code === '22P02') {
       throw new UnrecoverableError(`PostgreSQL schema mismatch: ${(err as Error).message}`)
     }
-    throw err
+    throw err // Transient → BullMQ will retry this job automatically
   } finally {
     pgClient.release()
   }
