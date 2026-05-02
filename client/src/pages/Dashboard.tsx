@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie } from 'recharts';
-import { Activity, Clock, ShieldAlert, CheckCircle } from 'lucide-react';
+import { Activity, Clock, ShieldAlert, CheckCircle, Zap, Server, Brain } from 'lucide-react';
 import { API_BASE } from '../config';
 
 const COLORS = {
@@ -14,6 +14,44 @@ const Dashboard: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
   const [timeseries, setTimeseries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const generateAiSummary = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/dashboard/ai-summary`, { method: 'POST' });
+      const json = await res.json();
+      if (res.ok) {
+        setAiSummary(json.data);
+      } else {
+        setAiError(json.error || 'Failed to generate summary');
+      }
+    } catch (err) {
+      setAiError('Network error connecting to AI endpoint.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const [prevWorkItemCount, setPrevWorkItemCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (summary && typeof summary.total_work_items === 'number') {
+      if (prevWorkItemCount === null) {
+        setPrevWorkItemCount(summary.total_work_items);
+        generateAiSummary(); // Initial load trigger
+      } else if (summary.total_work_items > prevWorkItemCount) {
+        setPrevWorkItemCount(summary.total_work_items);
+        generateAiSummary(); // Trigger on new incident
+      } else if (summary.total_work_items < prevWorkItemCount) {
+        setPrevWorkItemCount(summary.total_work_items);
+      }
+    }
+  }, [summary?.total_work_items]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,7 +107,7 @@ const Dashboard: React.FC = () => {
       <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>Global Overview</h2>
       
       {/* Top Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Activity size={16} /> Total Work Items
@@ -88,6 +126,14 @@ const Dashboard: React.FC = () => {
           </div>
           <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--status-success)' }}>
             {(summary?.state_counts.RESOLVED || 0) + (summary?.state_counts.CLOSED || 0)}
+          </div>
+        </div>
+        <div className="glass-panel" style={{ padding: '1.5rem' }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Zap size={16} color="#fbbf24" /> Avg MTTA
+          </div>
+          <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>
+            {formatMTTR(summary?.avg_mtta_seconds)}
           </div>
         </div>
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
@@ -149,6 +195,50 @@ const Dashboard: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
+        </div>
+      </div>
+
+      {/* Top Components List */}
+      <div className="glass-panel" style={{ padding: '1.5rem', marginTop: '1rem' }}>
+        <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Server size={18} /> Top Failing Components
+        </h3>
+        {summary?.top_components && summary.top_components.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {summary.top_components.map((comp: any) => (
+              <div key={comp.component_id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-md)' }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{comp.component_id}</span>
+                <span style={{ color: 'var(--status-p0)', fontWeight: 'bold' }}>{comp.count} Incidents</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ color: 'var(--text-muted)' }}>No failing components detected.</div>
+        )}
+      </div>
+
+      {/* AI Executive Summary */}
+      <div className="glass-panel" style={{ padding: '1.5rem', marginTop: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+            <Brain size={18} /> AI Executive Summary
+          </h3>
+          <button 
+            onClick={generateAiSummary} 
+            disabled={aiLoading} 
+            className="btn"
+            style={{ opacity: aiLoading ? 0.7 : 1 }}
+          >
+            {aiLoading ? 'Analyzing...' : 'Refresh Summary'}
+          </button>
+        </div>
+        {aiError && <div style={{ color: 'var(--status-p0)', marginBottom: '1rem', fontSize: '0.875rem' }}>{aiError}</div>}
+        <div style={{ color: 'var(--text-primary)', lineHeight: 1.6, minHeight: '60px' }}>
+          {aiSummary ? (
+            <p style={{ margin: 0 }}>{aiSummary}</p>
+          ) : (
+            <span style={{ color: 'var(--text-muted)' }}>Click generate to analyze current system health.</span>
+          )}
         </div>
       </div>
     </div>

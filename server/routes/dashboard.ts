@@ -10,6 +10,7 @@ import { z } from 'zod/v4';
 import { query } from '../db/postgres.js';
 import { getDashboardState, setDashboardState } from '../db/redis.js';
 import { Signal } from '../models/Signal.js';
+import { config } from '../config.js';
 
 export const dashboardRouter = Router();
 
@@ -34,6 +35,8 @@ interface DashboardSummary {
   priority_counts: PriorityCounts;
   total_work_items: number;
   avg_mttr_seconds: number | null;
+  avg_mtta_seconds: number | null;
+  top_components: { component_id: string; count: number }[];
   generated_at: string;
 }
 
@@ -80,11 +83,36 @@ dashboardRouter.get('/dashboard/summary', async (_req, res) => {
       ? parseInt(mttrResult.rows[0].avg_mttr, 10)
       : null;
 
+    // Average MTTA across all acknowledged incidents
+    const mttaResult = await query<{ avg_mtta: string | null }>(
+      `SELECT AVG(EXTRACT(EPOCH FROM (investigating_at - created_at)))::INT AS avg_mtta 
+       FROM work_items 
+       WHERE investigating_at IS NOT NULL`,
+    );
+    const avgMtta = mttaResult.rows[0]?.avg_mtta
+      ? parseInt(mttaResult.rows[0].avg_mtta, 10)
+      : null;
+
+    // Top Failing Components
+    const topComponentsResult = await query<{ component_id: string; count: string }>(
+      `SELECT component_id, COUNT(*) AS count 
+       FROM work_items 
+       GROUP BY component_id 
+       ORDER BY count DESC 
+       LIMIT 5`,
+    );
+    const topComponents = topComponentsResult.rows.map(r => ({
+      component_id: r.component_id,
+      count: parseInt(r.count, 10)
+    }));
+
     const summary: DashboardSummary = {
       state_counts: stateCounts,
       priority_counts: priorityCounts,
       total_work_items: totalWorkItems,
       avg_mttr_seconds: avgMttr,
+      avg_mtta_seconds: avgMtta,
+      top_components: topComponents,
       generated_at: new Date().toISOString(),
     };
 
@@ -194,6 +222,68 @@ dashboardRouter.get('/dashboard/timeseries', async (req, res) => {
     });
   } catch (err) {
     console.error('[Routes] GET /dashboard/timeseries error:', (err as Error).message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /api/dashboard/ai-summary ──────────────────────────────────────────
+
+/** Generate an AI executive summary based on the current dashboard state. */
+dashboardRouter.post('/dashboard/ai-summary', async (_req, res) => {
+  try {
+    if (!config.OPENROUTER_API_KEY) {
+      res.status(503).json({ error: 'AI Summary generation is not configured (OPENROUTER_API_KEY missing)' });
+      return;
+    }
+
+    // Get current dashboard stats
+    const stats: any = await getDashboardState();
+    if (!stats) {
+      res.status(400).json({ error: 'Dashboard metrics are still initializing. Try again in a few seconds.' });
+      return;
+    }
+
+    // Build the prompt
+    const prompt = `
+You are an expert SRE / NOC (Network Operations Center) AI assistant.
+Analyze the following real-time incident metrics for our distributed system and provide a concise, executive-level summary of the overall system health. 
+
+Data:
+- Total Work Items: ${stats.total_work_items}
+- State Breakdown: ${stats.state_counts.OPEN} Open, ${stats.state_counts.INVESTIGATING} Investigating, ${stats.state_counts.RESOLVED} Resolved, ${stats.state_counts.CLOSED} Closed.
+- Priority Breakdown: ${stats.priority_counts.P0} P0 (Critical), ${stats.priority_counts.P1} P1, ${stats.priority_counts.P2} P2, ${stats.priority_counts.P3} P3.
+- Average MTTA (Time to Acknowledge): ${stats.avg_mtta_seconds ? stats.avg_mtta_seconds + ' seconds' : 'N/A'}
+- Average MTTR (Time to Resolve): ${stats.avg_mttr_seconds ? stats.avg_mttr_seconds + ' seconds' : 'N/A'}
+- Top Failing Components: ${JSON.stringify(stats.top_components || [])}
+
+Provide a 2 to 3 sentence paragraph. Be professional, direct, and highlight any critical areas of concern (like high P0 counts, open incidents, or long MTTA/MTTR). Do not use markdown headers, just return plain text.
+`;
+
+    // Call OpenRouter API
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'nvidia/nemotron-3-super-120b-a12b:free',
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[OpenRouter Dashboard] Error:', await response.text());
+      res.status(502).json({ error: 'Failed to generate AI summary from provider.' });
+      return;
+    }
+
+    const data = (await response.json()) as any;
+    const content = data.choices?.[0]?.message?.content || 'No summary could be generated.';
+
+    res.json({ data: content.trim() });
+  } catch (err) {
+    console.error('[Routes] POST /dashboard/ai-summary error:', (err as Error).message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
