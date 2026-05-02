@@ -79,53 +79,58 @@ The system is designed to handle **bursts of up to 10,000 signals/second** witho
 4. **Async Processing (BullMQ):** Instead of executing 100 database inserts on the main thread, the Debouncer emits **one** single WorkItem creation job to a Redis-backed BullMQ Queue. 
 5. **Data Lake vs. Source of Truth:** The Async worker pulls the job, writes the 100 raw signals to the **MongoDB Data Lake**, but only executes **one** transactional state update in the **PostgreSQL Source of Truth**.
 
-## 🚀 Docker Setup & Local Execution
+## 🚀 Quick Start
 
 ### Prerequisites
 - [Docker](https://www.docker.com/) & Docker Compose
 - [Bun](https://bun.sh/) (JavaScript runtime)
 - Node.js & npm (for Frontend)
 
-### 1. Start the Databases
-The required databases (PostgreSQL, MongoDB, and Redis) are containerized.
+### One-Command Launch (Docker)
 ```bash
-docker-compose up -d
+make up        # builds & starts everything (Postgres, Mongo, Redis, Server, Client)
+make logs      # tail all container logs
 ```
-*Wait a few seconds for PostgreSQL to fully initialize the schema from `server/db/init.sql`.*
+Open `http://localhost:5173` for the NOC Dashboard, and `http://localhost:3001` for the API.
 
-### 2. Configure Environment Variables
-In the `server/` directory, create a `.env` file based on the config schema:
-```env
-# Optional Addons
+### Manual Setup (Local Dev)
+```bash
+# 1. Start only the databases
+make infra
+
+# 2. Configure environment (optional addons)
+cat > server/.env << 'EOF'
 OPENROUTER_API_KEY="your_openrouter_key"
 DISCORD_WEBHOOK_URL="your_discord_webhook"
-```
+EOF
 
-### 3. Start the Backend Server
-```bash
-cd server
-bun install
-bun index.ts
+# 3. Install dependencies & start both services
+make install
+make dev
 ```
-The server will start on `http://localhost:5555` and output `Signals/sec: 0` every 5 seconds.
+The server starts on `http://localhost:5555` and outputs `Signals/sec: 0` every 5 seconds.
 
-### 4. Start the Frontend NOC Dashboard
-In a new terminal:
+### Simulate Chaos!
 ```bash
-cd client
-npm install
-npm run dev
+make simulate                # CLI chaos script
 ```
-Open the provided Vite URL (usually `http://localhost:5173`).
+Or use the **Chaos Simulator** tab directly in the UI.
 
-### 5. Simulate Chaos!
-To test the backpressure and observe the real-time topology map:
-- Use the **Chaos Simulator** tab in the UI.
-- Or run the dedicated CLI script:
-```bash
-cd server
-bun run scripts/simulate-incident.ts
-```
+### Makefile Reference
+
+| Command | Description |
+|---------|-------------|
+| `make up` | Build & start all services in Docker |
+| `make down` | Stop all containers (preserves data) |
+| `make nuke` | Stop & destroy all volumes (fresh DB) |
+| `make logs` | Tail all container logs |
+| `make infra` | Start only Postgres, Mongo, Redis |
+| `make install` | Install server & client dependencies |
+| `make dev` | Run server + client locally |
+| `make test` | Run all backend unit tests |
+| `make test-file F=dbRetry` | Run a specific test file |
+| `make simulate` | Fire the CLI chaos simulator |
+| `make clean` | Remove node_modules & build artifacts |
 
 ## 🧠 Design Patterns Utilized
 - **Finite-State Machine (State Pattern):** Strictly controls incident transitions (`OPEN` → `INVESTIGATING` → `RESOLVED` → `CLOSED`). Prevents `CLOSED` transition if an RCA is missing.
