@@ -2,6 +2,8 @@
 
 A resilient Incident Management System for ingesting high-volume failure signals, debouncing noisy component failures, creating workflow-driven incidents, and closing incidents only after a complete Root Cause Analysis (RCA).
 
+**Live Demo**: [ims.hitanshu.xyz](https://ims.hitanshu.xyz) — hosted on an AWS EC2 `t3.medium` instance (2 vCPU, 4 GB RAM)
+
 This repository is structured as:
 
 - `server/`: Bun + Express backend, BullMQ worker, PostgreSQL/MongoDB/Redis integrations
