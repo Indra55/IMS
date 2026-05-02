@@ -229,7 +229,7 @@ You must respond with ONLY a valid JSON object matching this schema, with no mar
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'nvidia/nemotron-3-super-120b-a12b:free', // Requested by user
+        model: 'openai/gpt-oss-120b:free', 
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' }
       }),

@@ -267,7 +267,7 @@ Provide a 2 to 3 sentence paragraph. Be professional, direct, and highlight any 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'nvidia/nemotron-3-super-120b-a12b:free',
+        model: 'openai/gpt-oss-120b:free',
         messages: [{ role: 'user', content: prompt }],
       }),
     });
