@@ -228,8 +228,8 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ marginBottom: '1.5rem', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <div className="incident-detail-container" style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="incident-detail-header" style={{ marginBottom: '1.5rem', flexShrink: 0 }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             {item.component_id} <span style={{ fontSize: '1rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>({item.state})</span>
@@ -237,7 +237,7 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>{item.title}</p>
         </div>
         
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="incident-detail-actions" style={{ display: 'flex', gap: '0.5rem' }}>
           {item.state === 'OPEN' && (
             <button onClick={() => updateState('INVESTIGATING')} className="btn" style={{ background: 'var(--status-p2-bg)', color: 'var(--status-p2)', borderColor: 'rgba(234, 179, 8, 0.3)' }}>
               Acknowledge Incident
@@ -252,7 +252,7 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '1.5rem', flexShrink: 0 }}>
+      <div className="incident-detail-tabs" style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '1.5rem', flexShrink: 0 }}>
         <button 
           onClick={() => setActiveTab('rca')} 
           style={{ background: 'none', border: 'none', color: activeTab === 'rca' ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'rca' ? '2px solid var(--accent-primary)' : '2px solid transparent', padding: '0.5rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}
@@ -371,7 +371,7 @@ const IncidentDetail: React.FC<Props> = ({ item, onRefresh }) => {
               </div>
 
               {item.state !== 'CLOSED' && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', alignItems: 'center' }}>
+                <div className="incident-detail-submit" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', alignItems: 'center' }}>
                   <div style={{ fontSize: '0.875rem', color: item.state !== 'RESOLVED' ? 'var(--status-p1)' : 'var(--text-muted)' }}>
                     {item.state !== 'RESOLVED' ? '⚠️ You must transition the incident to RESOLVED before closing.' : ''}
                   </div>

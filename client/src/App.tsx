@@ -36,7 +36,7 @@ function AppContent() {
       </Layout>
       
       {toast && (
-        <div style={{
+        <div className="toast-notification" style={{
           position: 'fixed',
           bottom: '2rem',
           right: '2rem',

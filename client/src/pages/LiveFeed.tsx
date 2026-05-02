@@ -78,9 +78,9 @@ const LiveFeed: React.FC = () => {
   });
 
   return (
-    <div style={{ display: 'flex', height: '100%' }}>
+    <div className="livefeed-container" style={{ height: '100%' }}>
       {/* List Pane */}
-      <div style={{ width: '40%', minWidth: '350px', borderRight: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column' }}>
+      <div className={`livefeed-list ${selectedId ? 'livefeed-list-hidden' : ''}`} style={{ borderRight: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontSize: '1.125rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -176,9 +176,18 @@ const LiveFeed: React.FC = () => {
       </div>
 
       {/* Detail Pane */}
-      <div style={{ flex: 1, backgroundColor: 'rgba(15, 17, 26, 0.3)', overflowY: 'auto' }}>
+      <div className={`livefeed-detail ${selectedId ? '' : 'livefeed-detail-hidden'}`} style={{ flex: 1, backgroundColor: 'rgba(15, 17, 26, 0.3)', overflowY: 'auto' }}>
         {selectedItem ? (
-          <IncidentDetail key={selectedItem.id} item={selectedItem} onRefresh={fetchWorkItems} />
+          <div>
+            <button 
+              className="btn btn-secondary livefeed-back-btn"
+              onClick={() => setSelectedId(null)}
+              style={{ margin: '1rem 1rem 0', display: 'none' }}
+            >
+              ← Back to Incidents
+            </button>
+            <IncidentDetail key={selectedItem.id} item={selectedItem} onRefresh={fetchWorkItems} />
+          </div>
         ) : (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
             <Search size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />

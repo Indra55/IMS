@@ -133,7 +133,7 @@ const TopologyMap: React.FC = () => {
   }, [setNodes]);
 
   return (
-    <div style={{ height: '100%', width: '100%', padding: '2rem', display: 'flex', flexDirection: 'column' }}>
+    <div className="topology-container" style={{ height: '100%', width: '100%', padding: '2rem', display: 'flex', flexDirection: 'column' }}>
       <div style={{ marginBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Architectural Topology</h2>
         <p style={{ color: 'var(--text-secondary)' }}>Live system architecture map. Components will pulse red when experiencing an active incident.</p>

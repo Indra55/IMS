@@ -103,11 +103,11 @@ const Dashboard: React.FC = () => {
   ].filter(d => d.value > 0) : [];
 
   return (
-    <div style={{ padding: '2rem', height: '100%', overflowY: 'auto' }}>
+    <div className="dashboard-container" style={{ height: '100%', overflowY: 'auto' }}>
       <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>Global Overview</h2>
       
       {/* Top Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+      <div className="dashboard-cards" style={{ gap: '1rem', marginBottom: '2rem' }}>
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Activity size={16} /> Total Work Items
@@ -147,7 +147,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Main Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
+      <div className="dashboard-charts" style={{ gap: '1rem' }}>
         <div className="glass-panel" style={{ padding: '1.5rem', height: '400px', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem' }}>Signal Volume (Last 6 Hours)</h3>
           <div style={{ flex: 1, minHeight: 0 }}>

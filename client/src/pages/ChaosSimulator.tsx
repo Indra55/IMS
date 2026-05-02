@@ -41,7 +41,7 @@ const ChaosSimulator: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
+    <div className="chaos-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ marginBottom: '2rem' }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <AlertTriangle color="var(--status-p1)" />
@@ -56,7 +56,7 @@ const ChaosSimulator: React.FC = () => {
       <div style={{ display: 'grid', gap: '1.5rem' }}>
         {/* RDBMS Chaos */}
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="chaos-card-content">
             <div>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
                 <Database size={20} color="var(--status-p0)" />
@@ -83,7 +83,7 @@ const ChaosSimulator: React.FC = () => {
 
         {/* API Gateway Chaos */}
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="chaos-card-content">
             <div>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
                 <Server size={20} color="var(--status-p1)" />
@@ -111,7 +111,7 @@ const ChaosSimulator: React.FC = () => {
 
         {/* Redis Cache Chaos */}
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="chaos-card-content">
             <div>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
                 <HardDrive size={20} color="var(--status-p2)" />
