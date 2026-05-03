@@ -50,6 +50,7 @@ services:
       - DATABASE_URL=postgresql://ims:ims_secret@postgres:5432/ims_db
       - MONGODB_URL=mongodb://mongo:27017/ims_signals
       - REDIS_URL=redis://redis:6379
+      - DISABLE_RATE_LIMIT=${DISABLE_RATE_LIMIT:-false}
     depends_on:
       postgres:
         condition: service_healthy

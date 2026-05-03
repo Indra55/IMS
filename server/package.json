@@ -6,7 +6,8 @@
     "dev": "bun --watch index.ts",
     "build": "bun build index.ts --outdir dist --target bun",
     "start": "bun index.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "hammer": "bun run scripts/hammer.ts"
   },
   "private": true,
   "devDependencies": {

@@ -24,6 +24,7 @@ const envSchema = z.object({
   /** Rate limiter */
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(1_000),
+  DISABLE_RATE_LIMIT: z.coerce.boolean().default(false),
 
   /** Addons */
   OPENROUTER_API_KEY: z.string().optional(),
